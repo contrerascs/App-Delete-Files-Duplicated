@@ -10,7 +10,7 @@ def hash_file(filename):
 
 def find_duplicates(folder):
     hashes = {}
-    duplicates = {}
+    duplicates = []
     for dirpath, _, filenames in os.walk(folder):
         #print(filenames)
         #print(dirpath)
@@ -18,7 +18,7 @@ def find_duplicates(folder):
             full_path = os.path.join(dirpath, f)
             file_hash = hash_file(full_path)
             if file_hash in hashes:
-                duplicates.append((full_path), hashes[file_hash])
+                duplicates.append((full_path, hashes[file_hash]))
             else:
                 hashes[file_hash] = full_path
     return duplicates
@@ -29,3 +29,4 @@ def delete_files(filepath):
         return True
     except Exception as e:
         return False
+    
