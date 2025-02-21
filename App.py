@@ -1,5 +1,5 @@
 import flet as ft
-from Delete_Duplicates import find_duplicates
+from Delete_Duplicates import find_duplicates, delete_files
 
 def main(page: ft.Page):
     page.title = 'Delete duplicates files'
@@ -40,6 +40,15 @@ def main(page: ft.Page):
         height=200
     )
 
+    delete_all_btn = ft.ElevatedButton(
+        'Delete all duplicates',
+        color=ft.colors.WHITE,
+        bgcolor=ft.colors.RED_900,
+        icon=ft.icons.DELETE_SWEEP,
+        visible=False,
+        on_click=lambda e: delete_all_duplicates()
+    )
+
     def change_view(e):
         selected = e.control.selected_index
         if selected == 0:
@@ -61,9 +70,11 @@ def main(page: ft.Page):
         if not state['current_duplicates']:
             result_text.value = 'Not find duplicates files'
             result_text.color = ft.colors.GREEN_400
+            delete_all_btn.visible = False
         else:
             result_text.value = f'Find {len(state["current_duplicates"])} duplicates files'
             result_text.color = ft.colors.ORANGE_400
+            delete_all_btn.visible = True
 
             for dup_file, original in state['current_duplicates']:
                 dup_row = ft.Row([
@@ -72,11 +83,62 @@ def main(page: ft.Page):
                         size=12,
                         expand=True,
                         color=ft.colors.BLUE_200
+                    ),
+                    ft.ElevatedButton(
+                        'Delete',
+                        color=ft.colors.WHITE,
+                        bgcolor=ft.colors.RED_900,
+                        on_click=lambda e, path=dup_file: delete_duplicate(path)
                     )
                 ])
                 duplicates_list.controls.append(dup_row)
         duplicates_list.update()
         result_text.update()
+        delete_all_btn.update()
+
+    def delete_duplicate(filepath):
+        if delete_files(filepath):
+            result_text.value = f'File deleted: {filepath}'
+            result_text.color = ft.colors.GREEN_400
+            for control in duplicates_list.controls[:]:
+                if filepath in control.controls[0].value:
+                    duplicates_list.controls.remove(control)
+            state['current_duplicates'] = [(dup, orig) for dup, orig in state['current_duplicates'] if dup != filepath]
+            if not state['current_duplicates']:
+                delete_all_btn.visible = False
+        else:
+            result_text.value = f'Error at delete: {filepath}'
+            result_text.color = ft.colors.RED_400  
+
+        duplicates_list.update()
+        result_text.update()
+        delete_all_btn.update()
+
+
+    def delete_all_duplicates():
+        deleted_count = 0
+        failed_count = 0
+
+        for dup_file, _ in state['current_duplicates'][:]:
+            if delete_files(dup_file):
+                deleted_count += 1
+            else:
+                failed_count += 1
+
+            duplicates_list.controls.clear()
+            state['current_duplicates'] = []
+            delete_all_btn.visible = False
+
+            if failed_count == 0:
+                result_text.value = f'{deleted_count} Files duplicates delete succesfully.'
+                result_text.color = ft.colors.GREEN_400
+            else:
+                result_text.value = f'{deleted_count} Files duplicates delete succesfully. Error try delete {failed_count} files.'
+                result_text.color = ft.colors.RED_400
+            
+            duplicates_list.update()
+            result_text.update()
+            delete_all_btn.update()
 
     #Configure folder selector
     folder_picker = ft.FilePicker(on_result=hanlde_folder_picker)
@@ -94,13 +156,16 @@ def main(page: ft.Page):
                 ),
                 margin=ft.margin.only(bottom=20)
             ),
-            ft.ElevatedButton(
-                'Select Folder',
-                icon=ft.icons.FOLDER_OPEN,
-                color=ft.colors.WHITE,
-                bgcolor=ft.colors.BLUE_900,
-                on_click=lambda _: folder_picker.get_directory_path()
-            ),
+            ft.Row([
+                ft.ElevatedButton(
+                    'Select Folder',
+                    icon=ft.icons.FOLDER_OPEN,
+                    color=ft.colors.WHITE,
+                    bgcolor=ft.colors.BLUE_900,
+                    on_click=lambda _: folder_picker.get_directory_path()
+                ),
+                delete_all_btn,
+            ]),
             ft.Container(
                 content=selected_dir_text,
                 margin=ft.margin.only(top=10, bottom=10)
